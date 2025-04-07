@@ -1,6 +1,6 @@
 from pyrogram import Client, filters
-from pyrogram.types import Message
-from pornhub_api import PornhubApi
+from pyrogram.types import InlineQuery, InlineQueryResultArticle, InputTextMessageContent
+import yt_dlp
 import asyncio
 
 # Telegram bot credentials
@@ -11,47 +11,64 @@ bot_token = "7637037140:AAEItU6ezqzaxWKNBqintwmgBHHWktXwTOA"  # Replace with you
 # Initialize the Pyrogram client
 app = Client("ph_bot", api_id=api_id, api_hash=api_hash, bot_token=bot_token)
 
-# Pornhub API instance
-ph_api = PornhubApi()
-
 # Command handler for /start
 @app.on_message(filters.command("start"))
 async def start_command(client: Client, message: Message):
     await message.reply_text("Hello! Send me a search query with /search <keyword> to find videos.")
 
-# Command handler for /search
-@app.on_message(filters.command("search"))
-async def search_videos(client: Client, message: Message):
-    # Extract the search query from the message
-    query = " ".join(message.command[1:])
+@app.on_inline_query()
+async def handle_inline_query(client: Client, inline_query: InlineQuery):
+    query = inline_query.query.strip()
     if not query:
-        await message.reply_text("Please provide a search term, e.g., /search cats")
+        await inline_query.answer(
+            results=[],
+            switch_pm_text="Type a search query",
+            switch_pm_parameter="start"
+        )
         return
 
     try:
-        # Search Pornhub for the query
-        search_results = ph_api.search.search(query)
-        videos = search_results.videos
+        # Search Pornhub using yt-dlp
+        ydl_opts = {"quiet": True, "default_search": "phsearch"}
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            result = ydl.extract_info(query, download=False)
+            videos = result.get("entries", [])[:10]  # Limit to 10 results
 
         if not videos:
-            await message.reply_text("No videos found for that query.")
+            await inline_query.answer(
+                results=[],
+                switch_pm_text="No results found",
+                switch_pm_parameter="start"
+            )
             return
 
-        # Get the first video's details
-        video = videos[0]
-        title = video.title
-        url = video.url
+        # Build inline results
+        results = []
+        for video in videos:
+            title = video.get("title", "No title")
+            url = video.get("webpage_url", "#")
+            description = f"Duration: {video.get('duration', 'N/A')}s"
 
-        # Reply with the video title and URL
-        response = f"**Title**: {title}\n**URL**: {url}"
-        await message.reply_text(response)
+            results.append(
+                InlineQueryResultArticle(
+                    id=video.get("id"),
+                    title=title,
+                    input_message_content=InputTextMessageContent(f"**{title}**\n{url}"),
+                    description=description,
+                    thumb_url=video.get("thumbnail", None)
+                )
+            )
 
-        # Optional: You could download the video here and send it instead
-        # For now, we just send the URL due to file size limits
+        # Send the results
+        await inline_query.answer(results=results, cache_time=1)
 
     except Exception as e:
-        await message.reply_text(f"An error occurred: {str(e)}")
+        await inline_query.answer(
+            results=[],
+            switch_pm_text=f"Error: {str(e)}",
+            switch_pm_parameter="start"
+        )
 
 # Run the bot
-print("Bot is running...")
+print("Inline bot is running...")
 app.run()
