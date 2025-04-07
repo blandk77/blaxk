@@ -44,14 +44,17 @@ async def handle_inline_query(client: Client, inline_query: InlineQuery):
 
         # Build inline results
         results = []
-        for video in videos:
+        for index, video in enumerate(videos):
             title = video.get("title", "No title")
             url = video.get("webpage_url", "#")
             description = f"Duration: {video.get('duration', 'N/A')}s"
 
+            # Use a unique ID based on query ID and index
+            unique_id = f"{inline_query.id}_{index}"
+
             results.append(
                 InlineQueryResultArticle(
-                    id=video.get("id"),
+                    id=unique_id,  # Unique ID for this query
                     title=title,
                     input_message_content=InputTextMessageContent(f"**{title}**\n{url}"),
                     description=description,
