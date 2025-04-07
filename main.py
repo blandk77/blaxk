@@ -1,82 +1,57 @@
-import os
-import asyncio
 from pyrogram import Client, filters
 from pyrogram.types import Message
-import yt_dlp
+from pornhub_api import PornhubApi
+import asyncio
 
-API_ID = ""
-API_HASH = ""
-BOT_TOKEN = ""
+# Telegram bot credentials
+api_id = "YOUR_API_ID"  # Replace with your api_id
+api_hash = "YOUR_API_HASH"  # Replace with your api_hash
+bot_token = "YOUR_BOT_TOKEN"  # Replace with your bot token
 
-app = Client("PornhubBot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
+# Initialize the Pyrogram client
+app = Client("ph_bot", api_id=api_id, api_hash=api_hash, bot_token=bot_token)
 
+# Pornhub API instance
+ph_api = PornhubApi()
 
-YDL_OPTIONS = {
-    'format': 'bestvideo[height<=1080]+bestaudio/best[height<=1080]',
-    'outtmpl': 'downloads/%(title)s.%(ext)s',
-    'merge_output_format': 'mp4',
-    'quiet': True,
-}
-
-
+# Command handler for /start
 @app.on_message(filters.command("start"))
 async def start_command(client: Client, message: Message):
-    await message.reply_text("Hello! Send me a Pornhub video URL or use /search <query> to find videos.")
+    await message.reply_text("Hello! Send me a search query with /search <keyword> to find videos.")
 
-@app.on_message(filters.regex(r'https?://(www\.)?pornhub\.com/view_video\.php\?viewkey=.+'))
-async def download_video(client: Client, message: Message):
-    url = message.text
-    await message.reply_text("Downloading video, please wait...")
-    
-    try:
-        with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
-            info = ydl.extract_info(url, download=True)
-            video_path = ydl.prepare_filename(info)
-            video_title = info.get('title', 'video')
-
-        
-        await message.reply_video(
-            video=video_path,
-            caption=f"Here’s your video: {video_title}",
-            supports_streaming=True
-        )
-        
-        
-        os.remove(video_path)
-    except Exception as e:
-        await message.reply_text(f"Error: {str(e)}")
-
+# Command handler for /search
 @app.on_message(filters.command("search"))
 async def search_videos(client: Client, message: Message):
-    query = message.text.split(maxsplit=1)[1] if len(message.text.split()) > 1 else None
+    # Extract the search query from the message
+    query = " ".join(message.command[1:])
     if not query:
-        await message.reply_text("Please provide a search query, e.g., /search hot videos")
+        await message.reply_text("Please provide a search term, e.g., /search cats")
         return
-    
-    await message.reply_text(f"Searching for '{query}'...")
-    
-    try:
-        with yt_dlp.YoutubeDL({'quiet': True}) as ydl:
-            
-            search_url = f"https://www.pornhub.com/video/search?search={query}"
-            result = ydl.extract_info(search_url, download=False)
-            videos = result.get('entries', [])[:3]
-            
-            if not videos:
-                await message.reply_text("No results found.")
-                return
-            
-            response = "Search Results:\n"
-            for idx, video in enumerate(videos, 1):
-                title = video.get('title', 'Unknown Title')
-                url = video.get('webpage_url', '#')
-                response += f"{idx}. {title} - {url}\n"
-            
-            await message.reply_text(response + "\nSend a URL from the list to download!")
-    except Exception as e:
-        await message.reply_text(f"Error during search: {str(e)}")
 
-if __name__ == "__main__":
-    os.makedirs("downloads", exist_ok=True)
-    print("Bot is running...")
-    app.run()
+    try:
+        # Search Pornhub for the query
+        search_results = ph_api.search.search(query)
+        videos = search_results.videos
+
+        if not videos:
+            await message.reply_text("No videos found for that query.")
+            return
+
+        # Get the first video's details
+        video = videos[0]
+        title = video.title
+        url = video.url
+
+        # Reply with the video title and URL
+        response = f"**Title**: {title}\n**URL**: {url}"
+        await message.reply_text(response)
+
+        # Optional: You could download the video here and send it instead
+        # For now, we just send the URL due to file size limits
+
+    except Exception as e:
+        await message.reply_text(f"An error occurred: {str(e)}")
+
+# Run the bot
+print("Bot is running...")
+app.run()
