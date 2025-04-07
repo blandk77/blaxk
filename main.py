@@ -1,4 +1,4 @@
-from pyrogram import Client, filters
+from pyrogram import Client, filters, Message
 from pyrogram.types import InlineQuery, InlineQueryResultArticle, InputTextMessageContent
 import yt_dlp
 import asyncio
