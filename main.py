@@ -1,5 +1,5 @@
-from pyrogram import Client, filters, Message
-from pyrogram.types import InlineQuery, InlineQueryResultArticle, InputTextMessageContent
+from pyrogram import Client, filters
+from pyrogram.types import InlineQuery, InlineQueryResultArticle, InputTextMessageContent, Message
 import yt_dlp
 import asyncio
 
