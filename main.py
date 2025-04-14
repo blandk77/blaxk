@@ -1,6 +1,6 @@
 from pyrogram import Client, filters, types
 from pyrogram.types import InlineQueryResultArticle, InputTextMessageContent
-from pornhub_api import Pornhub
+import pornhub_api 
 import asyncio
 
 # Bot configuration
@@ -12,7 +12,7 @@ BOT_TOKEN = "8082116482:AAEeyEP6FEWmcOdMjCcj2XOSNOe_Sggoy5M"  # From @BotFather
 app = Client("ph_search_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
 # Initialize Pornhub API client
-ph_client = Pornhub.Client()
+ph_client = pornhub_api.Client()
 
 # Handle inline queries
 @app.on_inline_query()
