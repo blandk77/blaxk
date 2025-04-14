@@ -4,9 +4,9 @@ from pornhub_api import Pornhub
 import asyncio
 
 # Bot configuration
-API_ID = "your_api_id"  # From https://my.telegram.org
-API_HASH = "your_api_hash"  # From https://my.telegram.org
-BOT_TOKEN = "your_bot_token"  # From @BotFather
+API_ID = "23340285"  # From https://my.telegram.org
+API_HASH = "ab18f905cb5f4a75d41bb48d20acfa50"  # From https://my.telegram.org
+BOT_TOKEN = "8082116482:AAEeyEP6FEWmcOdMjCcj2XOSNOe_Sggoy5M"  # From @BotFather
 
 # Initialize Pyrogram client
 app = Client("ph_search_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
