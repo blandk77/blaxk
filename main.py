@@ -1,73 +1,65 @@
-from pyrogram import Client, filters
-import requests
-from bs4 import BeautifulSoup
-import yt_dlp
+from pyrogram import Client, filters, types
+from pyrogram.types import InlineQueryResultArticle, InputTextMessageContent
+from pornhub_api import Pornhub
 import asyncio
 
-# Telegram bot credentials
-api_id = "23340285"  # Replace with your api_id
-api_hash = "ab18f905cb5f4a75d41bb48d20acfa50"  # Replace with your api_hash
-bot_token = "7637037140:AAEItU6ezqzaxWKNBqintwmgBHHWktXwTOA"  # Replace with your bot token
+# Bot configuration
+API_ID = "your_api_id"  # From https://my.telegram.org
+API_HASH = "your_api_hash"  # From https://my.telegram.org
+BOT_TOKEN = "your_bot_token"  # From @BotFather
 
-# Initialize the Pyrogram client
-app = Client("ph_bot", api_id=api_id, api_hash=api_hash, bot_token=bot_token)
+# Initialize Pyrogram client
+app = Client("ph_search_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
-SITES = {
-    "pornhub": "https://www.pornhub.com/video/search?search={query}",
-    "xhamster": "https://xhamster.com/search/{query}",
-    "xvideos": "https://www.xvideos.com/?k={query}"
-}
+# Initialize Pornhub API client
+ph_client = Pornhub.Client()
 
-@app.on_message(filters.command("start"))
-async def start(client, message):
-    await message.reply_text("Send me a search query, e.g., 'cats' or 'xhamster cats'.")
+# Handle inline queries
+@app.on_inline_query()
+async def handle_inline_query(client, inline_query):
+    query = inline_query.query.strip()
+    if not query:
+        return  # Ignore empty queries
 
-@app.on_message(filters.text & ~filters.command(["start"]))
-async def search(client, message):
-    text = message.text.split()
-    site = "pornhub"  # Default site
-    query = message.text
-    
-    # Check if site is specified
-    if len(text) > 1 and text[0].lower() in SITES:
-        site = text[0].lower()
-        query = " ".join(text[1:])
-    
-    await message.reply_text(f"Searching {site} for: {query}...")
-    
     try:
-        search_url = SITES[site].format(query=query)
-        headers = {"User-Agent": "Mozilla/5.0"}
-        response = requests.get(search_url, headers=headers)
-        soup = BeautifulSoup(response.text, "html.parser")
-        
-        # Site-specific selectors (update these after inspecting each site)
-        selectors = {
-            "pornhub": "li.pcVideoListItem div.phimage a",
-            "xhamster": "div.video a.video-thumb__image-container",
-            "xvideos": "div.mozaique div.thumb a"
-        }
-        
-        video_elements = soup.select(selectors[site])
-        if not video_elements:
-            await message.reply_text(f"No videos found on {site}.")
-            return
-        
-        video_links = []
-        for elem in video_elements[:5]:
-            href = elem.get("href")
-            if href:
-                full_url = href if href.startswith("http") else f"https://{site}.com{href}"
-                video_links.append(full_url)
-        
-        response_text = f"Found {len(video_links)} videos on {site}:\n\n"
-        for i, link in enumerate(video_links, 1):
-            response_text += f"{i}. {link}\n"
-        
-        await message.reply_text(response_text)
-        
-    except Exception as e:
-        await message.reply_text(f"Error: {str(e)}")
+        # Search Pornhub videos (async)
+        results = await ph_client.search(query, sort="mostviewed", page=1)
+        inline_results = []
 
-print("Bot is running...")
-app.run()
+        # Limit to 10 results for demo
+        for video in list(results)[:10]:
+            inline_results.append(
+                InlineQueryResultArticle(
+                    id=video.id,  # Unique ID for the result
+                    title=video.title,
+                    description=f"Views: {video.views} | Duration: {video.duration}",
+                    thumb_url=video.thumbnail or None,
+                    input_message_content=InputTextMessageContent(
+                        message_text=f"Video: {video.title}\nLink: {video.url}"
+                    )
+                )
+            )
+
+        # Send inline results
+        await inline_query.answer(inline_results, cache_time=1)
+
+    except Exception as e:
+        # Handle errors (e.g., API failure)
+        await inline_query.answer(
+            [InlineQueryResultArticle(
+                id="error",
+                title="Error",
+                input_message_content=InputTextMessageContent(f"Failed to search: {str(e)}")
+            )],
+            cache_time=1
+        )
+
+# Start command for basic interaction
+@app.on_message(filters.command("start") & filters.private)
+async def start(client, message):
+    await message.reply("Hi! Use me in inline mode by typing `@YourBotName query` to search for videos.")
+
+# Run the bot
+if __name__ == "__main__":
+    print("Bot is running...")
+    app.run()
