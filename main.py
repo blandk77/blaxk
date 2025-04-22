@@ -6,9 +6,9 @@ from pyrogram.types import Message
 # Bot configuration
 API_ID = "23340285"  # From https://my.telegram.org
 API_HASH = "ab18f905cb5f4a75d41bb48d20acfa50"  # From https://my.telegram.org
-BOT_TOKEN = ""  # From BotFather
-CRUNCHYROLL_EMAIL = ""
-CRUNCHYROLL_PASSWORD = ""
+BOT_TOKEN = "7092944338:AAEUyTpCAGoNJ4CbB9JC5Y6QSLBjC-wDtfY"  # From BotFather
+CRUNCHYROLL_EMAIL = "helltv194@gmail.com"
+CRUNCHYROLL_PASSWORD = "290104An."
 
 # Initialize Pyrogram client
 app = Client("crunchyroll_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
