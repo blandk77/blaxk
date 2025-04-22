@@ -1,65 +1,81 @@
-from pyrogram import Client, filters, types
-from pyrogram.types import InlineQueryResultArticle, InputTextMessageContent
-import pornhub_api 
-import asyncio
+import os
+import subprocess
+from pyrogram import Client, filters
+from pyrogram.types import Message
 
 # Bot configuration
 API_ID = "23340285"  # From https://my.telegram.org
 API_HASH = "ab18f905cb5f4a75d41bb48d20acfa50"  # From https://my.telegram.org
-BOT_TOKEN = "8082116482:AAEeyEP6FEWmcOdMjCcj2XOSNOe_Sggoy5M"  # From @BotFather
+BOT_TOKEN = ""  # From BotFather
+CRUNCHYROLL_EMAIL = ""
+CRUNCHYROLL_PASSWORD = ""
 
 # Initialize Pyrogram client
-app = Client("ph_search_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
+app = Client("crunchyroll_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
-# Initialize Pornhub API client
-ph_client = pornhub_api.Client()
+# Start command
+@app.on_message(filters.command("start"))
+async def start(client: Client, message: Message):
+    await message.reply_text(
+        "Welcome to the Crunchyroll Downloader Bot! 🦋\n"
+        "Send /download <Crunchyroll episode URL> to download a video.\n"
+        "Example: /download https://www.crunchyroll.com/watch/XXXXXX"
+    )
 
-# Handle inline queries
-@app.on_inline_query()
-async def handle_inline_query(client, inline_query):
-    query = inline_query.query.strip()
-    if not query:
-        return  # Ignore empty queries
-
+# Download command
+@app.on_message(filters.command("download"))
+async def download(client: Client, message: Message):
     try:
-        # Search Pornhub videos (async)
-        results = await ph_client.search(query, sort="mostviewed", page=1)
-        inline_results = []
+        # Extract URL from command
+        args = message.text.split(maxsplit=inux1)
+        if len(args) < 2 or "crunchyroll.com" not in args[1]:
+            await message.reply_text("Please provide a valid Crunchyroll episode URL:\n/download <URL>")
+            return
 
-        # Limit to 10 results for demo
-        for video in list(results)[:10]:
-            inline_results.append(
-                InlineQueryResultArticle(
-                    id=video.id,  # Unique ID for the result
-                    title=video.title,
-                    description=f"Views: {video.views} | Duration: {video.duration}",
-                    thumb_url=video.thumbnail or None,
-                    input_message_content=InputTextMessageContent(
-                        message_text=f"Video: {video.title}\nLink: {video.url}"
-                    )
-                )
-            )
+        episode_url = args[1]
+        await message.reply_text(f"Processing: {episode_url}...")
 
-        # Send inline results
-        await inline_query.answer(inline_results, cache_time=1)
+        # Define output file
+        output_file = "downloaded_video.mp4"
 
-    except Exception as e:
-        # Handle errors (e.g., API failure)
-        await inline_query.answer(
-            [InlineQueryResultArticle(
-                id="error",
-                title="Error",
-                input_message_content=InputTextMessageContent(f"Failed to search: {str(e)}")
-            )],
-            cache_time=1
+        # Run crunchyroll-dl command
+        cmd = [
+            "crunchyroll-dl",
+            "--email", CRUNCHYROLL_EMAIL,
+            "--password", CRUNCHYROLL_PASSWORD,
+            "-o", output_file,
+            episode_url
+        ]
+        await message.reply_text("Downloading video...")
+        result = subprocess.run(cmd, capture_output=True, text=True)
+
+        # Check if download was successful
+        if result.returncode != 0:
+            await message.reply_text(f"Download failed: {result.stderr}")
+            return
+
+        # Verify file exists
+        if not os.path.exists(output_file):
+            await message.reply_text("Error: Video file not found.")
+            return
+
+        # Send video to Telegram
+        await message.reply_text("Uploading to Telegram...")
+        await client.send_video(
+            chat_id=message.chat.id,
+            video=output_file,
+            caption="Your Crunchyroll video! 🎥",
+            supports_streaming=True
         )
 
-# Start command for basic interaction
-@app.on_message(filters.command("start") & filters.private)
-async def start(client, message):
-    await message.reply("Hi! Use me in inline mode by typing `@YourBotName query` to search for videos.")
+        # Clean up
+        os.remove(output_file)
+        await message.reply_text("Done! Video sent. 🥳")
+
+    except Exception as e:
+        await message.reply_text(f"An error occurred: {str(e)}")
 
 # Run the bot
 if __name__ == "__main__":
-    print("Bot is running...")
     app.run()
+
