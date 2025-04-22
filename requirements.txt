@@ -1,11 +1,8 @@
-pyrofork
-tgcrypto 
+Pyrogram 
+Tgcrypto 
 crunchyroll-dl
-yt-dlp
 Flask
 gunicorn
 Jinja2
 werkzeug
 itsdangerous
-requests
-beautifulsoup4
