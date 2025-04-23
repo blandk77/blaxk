@@ -1,6 +1,6 @@
-Pyrogram 
-Tgcrypto 
-crunchyroll-dl
+pyrogram==2.0.106
+tgcrypto
+python-dotenv
 Flask
 gunicorn
 Jinja2
