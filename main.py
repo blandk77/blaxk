@@ -19,7 +19,7 @@ MULTI_DOWNLOADER_PATH = "/app/multi-downloader-nx"  # Path in Koyeb container
 app = Client("crunchyroll_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
 # Start command
-@app.on_message(filters.command("start"))
+@Client.on_message(filters.command("start"))
 async def start(client: Client, message: Message):
     await message.reply_text(
         "Welcome to the Crunchyroll Downloader Bot! 🦋\n"
@@ -28,7 +28,7 @@ async def start(client: Client, message: Message):
     )
 
 # Download command
-@app.on_message(filters.command("download"))
+@Client.on_message(filters.command("download"))
 async def download(client: Client, message: Message):
     try:
         # Extract URL from command
