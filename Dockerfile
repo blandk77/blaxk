@@ -22,8 +22,8 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy bot code
-COPY bot.py .
+COPY main.py .
 COPY .env .
 
 # Command to run bot
-CMD gunicorn app:app & python3 bot.py
+CMD gunicorn app:app & python3 main.py
