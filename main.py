@@ -1,6 +1,6 @@
 import os
 import subprocess
-import logging  # Added for debug logging
+import logging
 from pyrogram import Client, filters
 from pyrogram.types import Message
 from dotenv import load_dotenv
@@ -63,15 +63,25 @@ async def download(client: Client, message: Message):
         await message.reply_text("Downloading video...")
         logger.info(f"Running command: {' '.join(cmd)}")
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        
+        last_progress = ""
         while process.poll() is None:
             line = process.stdout.readline().strip()
             if line and ("%" in line or "Downloading" in line or "Processing" in line):
-                await message.reply_text(f"Progress: {line}")
-                logger.info(f"Download progress: {line}")
-
+                # Truncate to 4000 chars to stay under Telegram's 4096 limit
+                truncated_line = line[:4000]
+                if truncated_line != last_progress:  # Avoid spamming same message
+                    try:
+                        await message.reply_text(f"Progress: {truncated_line}")
+                        logger.info(f"Download progress: {truncated_line}")
+                        last_progress = truncated_line
+                    except Exception as e:
+                        logger.warning(f"Failed to send progress: {str(e)}")
+        
+        # Capture any remaining output
+        error_output = process.stdout.read() or "Unknown error"
         if process.returncode != 0:
-            error_output = process.stdout.read() or "Unknown error"
-            await message.reply_text(f"Download failed: {error_output}")
+            await message.reply_text(f"Download failed: {error_output[:4000]}")
             logger.error(f"Download failed: {error_output}")
             return
 
@@ -86,8 +96,8 @@ async def download(client: Client, message: Message):
             logger.info("Compressing video due to size limit")
             compressed_file = "compressed_video.mkv"
             subprocess.run([
-                "ffmpeg", "-i", output_file, "-c:v", "libx264", "-crf", "23",
-                "-preset", "fast", "-c:a", "aac", "-b:a", "128k", compressed_file
+                "ffmpeg", "-i", output_file, "-c:v", "libx265", "-crf", "30",
+                "-preset", "veryfast", "-c:a", "aac", "-b:a", "128k", compressed_file
             ])
             if os.path.exists(compressed_file):
                 output_file = compressed_file
