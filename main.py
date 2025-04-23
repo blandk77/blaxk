@@ -3,13 +3,7 @@ import subprocess
 from pyrogram import Client, filters
 from pyrogram.types import Message
 from dotenv import load_dotenv
-from flask import Flask
 
-app = Flask(__name__)
-
-@app.route('/')
-def hello_world():
-    return 'Hello'
 # Load environment variables
 load_dotenv()
 
