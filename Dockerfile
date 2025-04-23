@@ -1,18 +1,23 @@
 # Stage 1: Build multi-downloader-nx
 FROM node:18 AS node-builder
 WORKDIR /app/multi-downloader-nx
+RUN npm install -g pnpm
 RUN git clone https://github.com/anidl/multi-downloader-nx.git .
-RUN npm install && npm run tsc
+RUN pnpm install
+RUN pnpm run tsc
 
 # Stage 2: Final image
 FROM python:3.9-slim
 WORKDIR /app
 
-# Install FFmpeg and MKVToolNix
-RUN apt-get update && apt-get install -y ffmpeg mkvtoolnix && apt-get clean
+# Install FFmpeg, MKVToolNix, and Node.js
+RUN apt-get update && apt-get install -y \
+    ffmpeg \
+    mkvtoolnix \
+    nodejs \
+    npm \
+    && apt-get clean
 
-# Install Node.js
-RUN apt-get install -y nodejs npm
 
 # Copy multi-downloader-nx
 COPY --from=node-builder /app/multi-downloader-nx /app/multi-downloader-nx
@@ -21,7 +26,7 @@ COPY --from=node-builder /app/multi-downloader-nx /app/multi-downloader-nx
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy bot code
+# Copy bot code and env
 COPY main.py .
 COPY .env .
 
