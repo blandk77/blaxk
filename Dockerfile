@@ -31,4 +31,4 @@ COPY main.py .
 COPY .env .
 
 # Command to run bot
-CMD gunicorn app:app & python3 main.py
+CMD python main.py
