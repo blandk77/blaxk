@@ -112,4 +112,4 @@ async def download(client: Client, message: Message):
 
 # Run the bot
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=8080)
+    app.run()
