@@ -57,12 +57,12 @@ async def download(client: Client, message: Message):
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         while process.poll() is None:
             line = process.stdout.readline().strip()
-            if line and ("%" in line or "Downloading" in line):
+            if line and ("%" in line or "Downloading" in line or "Processing" in line):
                 await message.reply_text(f"Progress: {line}")
 
         # Check if download was successful
         if process.returncode != 0:
-            error_output = process.stdout.read()
+            error_output = process.stdout.read() or "Unknown error"
             await message.reply_text(f"Download failed: {error_output}")
             return
 
@@ -77,7 +77,7 @@ async def download(client: Client, message: Message):
             await message.reply_text("Video too large, compressing...")
             compressed_file = "compressed_video.mkv"
             subprocess.run([
-                "ffmpeg", "-i", output_file, "-c:v", "libx264", "-crf", "30",
+                "ffmpeg", "-i", output_file, "-c:v", "libx264", "-crf", "23",
                 "-preset", "fast", "-c:a", "aac", "-b:a", "128k", compressed_file
             ])
             if os.path.exists(compressed_file):
