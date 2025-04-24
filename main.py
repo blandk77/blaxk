@@ -52,8 +52,8 @@ async def rip(client: Client, message: Message):
 
         # Parse arguments
         series_id = None
-        episode = "1"
-        quality = "3"  # Default to max quality
+        episode = None
+        quality = "0"  # Default to max quality
         dub_lang = ["jpn"]  # Default to Japanese
         dl_subs = ["en"]  # Default to English subtitles
 
@@ -87,6 +87,7 @@ async def rip(client: Client, message: Message):
         output_file = "crunchyroll_video.mkv"
         cmd = [
             "node", f"{MULTI_DOWNLOADER_PATH}/lib/index.js",
+            "--service", "crunchy",  # Required for Crunchyroll
             "--username", CRUNCHYROLL_EMAIL,
             "--password", CRUNCHYROLL_PASSWORD,
             "--output", output_file,
@@ -99,6 +100,7 @@ async def rip(client: Client, message: Message):
             "--crapi", "web",
             "--removeBumpers",
             "--chapters",
+            "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
         ]
         await message.reply_text("Downloading video...")
         logger.info(f"Running command: {' '.join(cmd)}")
@@ -134,7 +136,7 @@ async def rip(client: Client, message: Message):
             logger.info("Compressing video due to size limit")
             compressed_file = "compressed_video.mkv"
             subprocess.run([
-                "ffmpeg", "-i", output_file, "-c:v", "libx264", "-crf", "23",
+                "ffmpeg", "-i", output_file, "-c:v", "libx265", "-crf", "30",
                 "-preset", "fast", "-c:a", "aac", "-b:a", "128k", compressed_file
             ])
             if os.path.exists(compressed_file):
