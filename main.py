@@ -32,23 +32,57 @@ async def start(client: Client, message: Message):
     logger.info(f"Received /start from {message.from_user.id}")
     await message.reply_text(
         "Welcome to the Crunchyroll Downloader Bot! 🦋\n"
-        "Send /download <Crunchyroll episode URL> to download a video.\n"
-        "Example: /download https://www.crunchyroll.com/watch/G31UXQ3NP/izuku-midoriya-origin"
+        "Send /rip --srz <series_id> -e <episode> -q <quality> --dubLang <lang> --dlsubs <lang>\n"
+        "Example: /rip --srz G4PH0WEKE -e 07 -q 5 --dubLang hin --dlsubs en\n"
+        "Series ID: Extract from Crunchyroll series URL (e.g., https://www.crunchyroll.com/series/G4PH0WEKE/blue-lock)"
     )
 
-# Download command
-@app.on_message(filters.command("download"))
-async def download(client: Client, message: Message):
+# Rip command
+@app.on_message(filters.command("rip"))
+async def rip(client: Client, message: Message):
     try:
-        logger.info(f"Received /download from {message.from_user.id}")
-        args = message.text.split(maxsplit=1)
-        if len(args) < 2 or "crunchyroll.com" not in args[1]:
-            await message.reply_text("Please provide a valid Crunchyroll episode URL:\n/download <URL>")
+        logger.info(f"Received /rip from {message.from_user.id}")
+        args = message.text.split()
+        if len(args) < 2:
+            await message.reply_text(
+                "Usage: /rip --srz <series_id> -e <episode> -q <quality> --dubLang <lang> --dlsubs <lang>\n"
+                "Example: /rip --srz G4PH0WEKE -e 07 -q 5 --dubLang hin --dlsubs en"
+            )
             return
 
-        episode_url = args[1]
-        await message.reply_text(f"Processing: {episode_url}...")
-        logger.info(f"Processing URL: {episode_url}")
+        # Parse arguments
+        series_id = None
+        episode = "1"
+        quality = "3"  # Default to max quality
+        dub_lang = ["jpn"]  # Default to Japanese
+        dl_subs = ["en"]  # Default to English subtitles
+
+        i = 1
+        while i < len(args):
+            if args[i] == "--srz":
+                series_id = args[i + 1]
+                i += 2
+            elif args[i] == "-e":
+                episode = args[i + 1]
+                i += 2
+            elif args[i] == "-q":
+                quality = args[i + 1]
+                i += 2
+            elif args[i] == "--dubLang":
+                dub_lang = args[i + 1].split()
+                i += 2
+            elif args[i] == "--dlsubs":
+                dl_subs = args[i + 1].split()
+                i += 2
+            else:
+                i += 1
+
+        if not series_id or not episode:
+            await message.reply_text("Missing required arguments: --srz and -e are mandatory.")
+            return
+
+        await message.reply_text(f"Processing series {series_id}, episode {episode}...")
+        logger.info(f"Processing series: {series_id}, episode: {episode}")
 
         output_file = "crunchyroll_video.mkv"
         cmd = [
@@ -56,9 +90,15 @@ async def download(client: Client, message: Message):
             "--username", CRUNCHYROLL_EMAIL,
             "--password", CRUNCHYROLL_PASSWORD,
             "--output", output_file,
-            "--quality", "0",
+            "--srz", series_id,
+            "-e", episode,
+            "-q", quality,
+            "--dubLang", *dub_lang,
+            "--dlsubs", *dl_subs,
             "--merge-output-format", "mkv",
-            episode_url
+            "--crapi", "web",
+            "--removeBumpers",
+            "--chapters",
         ]
         await message.reply_text("Downloading video...")
         logger.info(f"Running command: {' '.join(cmd)}")
@@ -68,9 +108,8 @@ async def download(client: Client, message: Message):
         while process.poll() is None:
             line = process.stdout.readline().strip()
             if line and ("%" in line or "Downloading" in line or "Processing" in line):
-                # Truncate to 4000 chars to stay under Telegram's 4096 limit
                 truncated_line = line[:4000]
-                if truncated_line != last_progress:  # Avoid spamming same message
+                if truncated_line != last_progress:
                     try:
                         await message.reply_text(f"Progress: {truncated_line}")
                         logger.info(f"Download progress: {truncated_line}")
@@ -78,7 +117,6 @@ async def download(client: Client, message: Message):
                     except Exception as e:
                         logger.warning(f"Failed to send progress: {str(e)}")
         
-        # Capture any remaining output
         error_output = process.stdout.read() or "Unknown error"
         if process.returncode != 0:
             await message.reply_text(f"Download failed: {error_output[:4000]}")
@@ -96,8 +134,8 @@ async def download(client: Client, message: Message):
             logger.info("Compressing video due to size limit")
             compressed_file = "compressed_video.mkv"
             subprocess.run([
-                "ffmpeg", "-i", output_file, "-c:v", "libx265", "-crf", "30",
-                "-preset", "veryfast", "-c:a", "aac", "-b:a", "128k", compressed_file
+                "ffmpeg", "-i", output_file, "-c:v", "libx264", "-crf", "23",
+                "-preset", "fast", "-c:a", "aac", "-b:a", "128k", compressed_file
             ])
             if os.path.exists(compressed_file):
                 output_file = compressed_file
